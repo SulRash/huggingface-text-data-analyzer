@@ -25,7 +25,7 @@ requirements = [
 
 setup(
     name="huggingface-text-data-analyzer",
-    version="0.1.0",
+    version="1.0.0",
     python_requires=">=3.8",
     packages=find_packages(exclude=["tests*"]),
     
