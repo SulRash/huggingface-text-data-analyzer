@@ -1,5 +1,7 @@
 # Huggingface Text Data Analyzer
 
+![Repository Image](assets/hftxtdata.png)
+
 A comprehensive tool for analyzing text datasets from HuggingFace's datasets library. This tool provides both basic text statistics and advanced NLP analysis capabilities with optimized performance for large datasets.
 
 ## Features
