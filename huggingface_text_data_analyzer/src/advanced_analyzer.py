@@ -6,6 +6,7 @@ from collections import Counter
 from rich.console import Console
 import os
 from itertools import islice
+import torch
 
 from .base_analyzer import BaseAnalyzer
 from .utils import create_progress
@@ -45,7 +46,7 @@ class AdvancedAnalyzer(BaseAnalyzer):
         self.use_sentiment = use_sentiment
         self.use_topics = use_topics
         self.batch_size = batch_size
-        
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.console.log("Loading advanced analysis models")
         
         if use_pos or use_ner:

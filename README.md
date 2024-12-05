@@ -142,6 +142,50 @@ The tool generates markdown reports in the specified output directory:
 - `word_distribution.md`: Word frequency analysis
 - `advanced_stats.md`: Results from model-based analysis (if enabled)
 
+## Performance and Accuracy Considerations
+
+### Batch Sizes and Memory Usage
+
+The tool uses two different batch sizes for processing:
+
+1. **Basic Batch Size** (`--basic-batch-size`, default: 1):
+   - Used for tokenization and basic text analysis
+   - Higher values improve processing speed but may affect token count accuracy
+   - Token counting in larger batches can be affected by padding, truncation, and memory constraints
+   - If exact token counts are crucial, use smaller batch sizes (8-16)
+
+2. **Advanced Batch Size** (`--advanced-batch-size`, default: 16):
+   - Used for transformer models (language detection, sentiment analysis)
+   - Adjust based on your GPU memory
+   - Larger batches improve processing speed but require more GPU memory
+   - CPU-only users might want to use smaller batches (4-8)
+
+### GPU Support
+
+The tool automatically detects and uses available CUDA GPUs for:
+- Language detection model
+- Sentiment analysis model
+- Tokenizer operations
+
+SpaCy operations (POS tagging, NER) remain CPU-bound for better compatibility.
+
+### Examples
+
+For exact token counting:
+```bash
+analyze-dataset "dataset_name" --basic-batch-size 8
+```
+
+For faster processing with GPU:
+```bash
+analyze-dataset "dataset_name" --advanced-batch-size 32 --basic-batch-size 64
+```
+
+For memory-constrained environments:
+```bash
+analyze-dataset "dataset_name" --advanced-batch-size 4 --basic-batch-size 16
+```
+
 ## Performance Features
 
 - Batch processing for tokenization

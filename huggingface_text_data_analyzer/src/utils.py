@@ -64,7 +64,6 @@ class CacheManager:
         except Exception as e:
             self.console.log(f"[red]Error clearing cache: {str(e)}[/red]")
 
-# Modified AnalysisArguments and parse_args
 class AnalysisArguments(NamedTuple):
     dataset_name: str
     subset: Optional[str]
@@ -77,7 +76,8 @@ class AnalysisArguments(NamedTuple):
     use_lang: bool
     use_sentiment: bool
     chat_field: str | None
-    batch_size: int
+    basic_batch_size: int
+    advanced_batch_size: int
     fields: List[str] | None
     clear_cache: bool
     output_format: str
@@ -111,11 +111,13 @@ def parse_args() -> AnalysisArguments:
     parser.add_argument("--use-lang", action="store_true", help="Include language detection")
     parser.add_argument("--use-sentiment", action="store_true", help="Include sentiment analysis")
     parser.add_argument("--chat-field", type=str, help="Field to apply chat template to")
-    parser.add_argument("--batch-size", type=int, default=1, help="Batch size for tokenization")
+    parser.add_argument("--basic-batch-size", type=int, default=1, 
+                       help="Batch size for basic tokenization and analysis (higher values may affect token count accuracy)")
+    parser.add_argument("--advanced-batch-size", type=int, default=16,
+                       help="Batch size for advanced analysis models (adjust based on GPU memory)")
     parser.add_argument("--fields", type=str, nargs="+", 
                        help="Specific fields to analyze. If not specified, all text fields will be analyzed")
     parser.add_argument("--clear-cache", action="store_true", help="Clear cache before analysis")
-    
     parser.add_argument(
         "--output-format",
         choices=["markdown", "graphs", "both"],
@@ -136,7 +138,8 @@ def parse_args() -> AnalysisArguments:
         use_lang=args.use_lang,
         use_sentiment=args.use_sentiment,
         chat_field=args.chat_field,
-        batch_size=args.batch_size,
+        basic_batch_size=args.basic_batch_size,
+        advanced_batch_size=args.advanced_batch_size,
         fields=args.fields,
         clear_cache=args.clear_cache,
         output_format=args.output_format
