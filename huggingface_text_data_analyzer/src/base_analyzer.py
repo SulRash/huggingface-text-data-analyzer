@@ -1,18 +1,13 @@
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Any
-from datasets import load_dataset, Features
+from datasets import load_dataset
 from collections import Counter
 import re
 import statistics
 from transformers import PreTrainedTokenizer
 from rich.console import Console
-import torch
-from itertools import islice
-import os
-import pickle
-from pathlib import Path
 
-from .utils import create_progress
+from .utils import create_progress, CacheManager
 
 @dataclass
 class FieldStats:
@@ -32,28 +27,21 @@ class BaseAnalyzer:
         dataset_name: str,
         split: str = "train",
         tokenizer: Optional[PreTrainedTokenizer] = None,
-        cache_tokenized: bool = True,
         console: Optional[Console] = None,
         chat_field: Optional[str] = None,
-        batch_size: int = 32,
+        batch_size: int = 1,
         fields: Optional[List[str]] = None,
-        cache_dir: Optional[str] = None
     ):
         self.console = console or Console()
         self.console.log(f"Loading dataset: {dataset_name} (split: {split})")
         self.dataset = load_dataset(dataset_name, split=split)
         self.tokenizer = tokenizer
-        self.cache_tokenized = cache_tokenized
-        self.cached_tokens = {}
         self.chat_field = chat_field
         self.batch_size = batch_size
         self.fields = fields
-        self.cache_dir = cache_dir or Path("./cache")
         self.dataset_name = dataset_name
         self.split = split
-        
-        if self.cache_tokenized:
-            os.makedirs(self.cache_dir, exist_ok=True)
+        self.cache_manager = CacheManager(console=self.console)
         
         if tokenizer:
             self.console.log(f"Using tokenizer: {tokenizer.__class__.__name__}")
@@ -62,24 +50,6 @@ class BaseAnalyzer:
                     self.console.log(f"Chat template will be applied to field: {chat_field}")
                 else:
                     self.console.log("[yellow]Warning: Tokenizer does not have a chat template[/yellow]")
-
-    def get_cache_path(self, field_name: str) -> Path:
-        tokenizer_name = self.tokenizer.__class__.__name__ if self.tokenizer else "no_tokenizer"
-        return Path(self.cache_dir) / f"{self.dataset_name}_{self.split}_{field_name}_{tokenizer_name}_tokens.pkl"
-
-    def load_cached_tokens(self, field_name: str) -> Optional[List[List[int]]]:
-        cache_path = self.get_cache_path(field_name)
-        if cache_path.exists():
-            self.console.log(f"Loading cached tokens for {field_name}")
-            with open(cache_path, 'rb') as f:
-                return pickle.load(f)
-        return None
-
-    def save_tokens_to_cache(self, field_name: str, tokens: List[List[int]]):
-        cache_path = self.get_cache_path(field_name)
-        self.console.log(f"Saving tokens to cache for {field_name}")
-        with open(cache_path, 'wb') as f:
-            pickle.dump(tokens, f)
 
     def calculate_overall_stats(self, field_stats: Dict[str, FieldStats]) -> FieldStats:
         total_texts = sum(len(self.dataset[field]) for field in field_stats.keys())
@@ -112,10 +82,16 @@ class BaseAnalyzer:
         if not self.tokenizer:
             return []
 
-        if self.cache_tokenized:
-            cached_tokens = self.load_cached_tokens(field_name)
-            if cached_tokens is not None:
-                return cached_tokens
+        tokenizer_name = self.tokenizer.__class__.__name__
+        cached_tokens = self.cache_manager.load_from_cache(
+            self.dataset_name,
+            self.split,
+            field_name,
+            tokenizer_name
+        )
+        
+        if cached_tokens is not None:
+            return cached_tokens
 
         all_tokens = []
         is_chat = field_name == self.chat_field and hasattr(self.tokenizer, "chat_template")
@@ -152,8 +128,14 @@ class BaseAnalyzer:
                 
                 progress.advance(task)
 
-        if self.cache_tokenized:
-            self.save_tokens_to_cache(field_name, all_tokens)
+        # Save to cache
+        self.cache_manager.save_to_cache(
+            all_tokens,
+            self.dataset_name,
+            self.split,
+            field_name,
+            tokenizer_name
+        )
 
         return all_tokens
 
@@ -172,7 +154,7 @@ class BaseAnalyzer:
             stats_task = progress.add_task(
                 f"Processing text statistics for {field_name}",
                 total=total_texts,
-                visible=True  # Make sure it's visible
+                visible=True
             )
             
             for i in range(0, total_texts, self.batch_size):
@@ -200,9 +182,6 @@ class BaseAnalyzer:
             self.console.log(f"Batch tokenizing {field_name}")
             valid_texts = [text for text in processed_texts if text]
             tokens = self.batch_tokenize(valid_texts, field_name)
-            
-            if self.cache_tokenized:
-                self.cached_tokens[field_name] = tokens
             
             if tokens:
                 token_length = statistics.mean([len(t) for t in tokens])

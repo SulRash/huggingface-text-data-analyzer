@@ -1,13 +1,12 @@
-# dataset_analysis_tool/cli.py
-
 from pathlib import Path
 from transformers import AutoTokenizer
 from rich.panel import Panel
 from rich.console import Console
+
 from .src.base_analyzer import BaseAnalyzer
 from .src.advanced_analyzer import AdvancedAnalyzer
 from .src.report_generator import ReportGenerator
-from .src.utils import parse_args, setup_logging
+from .src.utils import parse_args, setup_logging, CacheManager
 
 def run_analysis(args, console: Console = None):
     """Main analysis function that can be called programmatically or via CLI"""
@@ -17,6 +16,12 @@ def run_analysis(args, console: Console = None):
     try:
         console.rule("[bold blue]Dataset Analysis Tool")
         console.print(f"Starting analysis of dataset: {args.dataset_name}")
+
+        # Handle cache clearing
+        cache_manager = CacheManager(console=console)
+        if args.clear_cache:
+            cache_manager.clear_cache(args.dataset_name)
+            console.print("[green]Cache cleared successfully")
 
         tokenizer = None
         if args.tokenizer:
@@ -29,7 +34,6 @@ def run_analysis(args, console: Console = None):
             dataset_name=args.dataset_name,
             split=args.split,
             tokenizer=tokenizer,
-            cache_tokenized=args.cache_tokenized,
             console=console,
             chat_field=args.chat_field,
             batch_size=args.batch_size,
@@ -78,9 +82,9 @@ def run_analysis(args, console: Console = None):
             title="Completed Analysis Steps",
             border_style="blue"
         ))
-        
-        return 0
 
+        return 0
+        
     except Exception as e:
         console.print(Panel(
             f"[red]Error during analysis: {str(e)}",
