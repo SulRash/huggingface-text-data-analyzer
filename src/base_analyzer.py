@@ -160,7 +160,7 @@ class BaseAnalyzer:
     def analyze_field(self, texts: List[Any], field_name: str) -> FieldStats:
         self.console.log(f"Analyzing field: {field_name}")
         
-        # Process texts in batches without progress bar for basic stats
+        # Process texts in batches with progress bar
         processed_texts = self.process_texts_in_batches(texts)
         
         total_texts = len(processed_texts)
@@ -168,16 +168,23 @@ class BaseAnalyzer:
         word_dist = {}
         junk_scores = []
         
-        # Process stats without progress bar
-        for i in range(0, total_texts, self.batch_size):
-            batch = processed_texts[i:i + self.batch_size]
-            for text in batch:
-                if text:
-                    word_counts.append(self.count_words(text))
-                    dist = self.get_word_distribution(text)
-                    for word, count in dist.items():
-                        word_dist[word] = word_dist.get(word, 0) + count
-                    junk_scores.append(self.detect_junk(text))
+        with create_progress() as progress:
+            stats_task = progress.add_task(
+                f"Processing text statistics for {field_name}",
+                total=total_texts,
+                visible=True  # Make sure it's visible
+            )
+            
+            for i in range(0, total_texts, self.batch_size):
+                batch = processed_texts[i:i + self.batch_size]
+                for text in batch:
+                    if text:
+                        word_counts.append(self.count_words(text))
+                        dist = self.get_word_distribution(text)
+                        for word, count in dist.items():
+                            word_dist[word] = word_dist.get(word, 0) + count
+                        junk_scores.append(self.detect_junk(text))
+                progress.advance(stats_task, len(batch))
         
         if not word_counts:
             self.console.log(f"[yellow]Warning: No valid texts found in field {field_name}[/yellow]")
