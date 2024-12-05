@@ -5,6 +5,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import NamedTuple, List, Optional, Any
 
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn
 from rich.console import Console
 
 class CacheManager:
@@ -79,7 +80,16 @@ class AnalysisArguments(NamedTuple):
     fields: List[str] | None
     clear_cache: bool  # New argument
 
-
+def create_progress() -> Progress:
+    """Create a consistent progress bar for the application."""
+    return Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeRemainingColumn(),
+        console=Console()
+    )
 
 def parse_args() -> AnalysisArguments:
     parser = ArgumentParser(description="Analyze text dataset from HuggingFace")
