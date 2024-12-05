@@ -40,7 +40,7 @@ def run_analysis(args, console: Console = None):
             tokenizer=tokenizer,
             console=console,
             chat_field=args.chat_field,
-            batch_size=args.batch_size,
+            batch_size=args.basic_batch_size,  # Updated to use basic_batch_size
             fields=args.fields
         )
         basic_stats = base_analyzer.analyze()
@@ -58,10 +58,12 @@ def run_analysis(args, console: Console = None):
                 use_ner=args.use_ner,
                 use_lang=args.use_lang,
                 use_sentiment=args.use_sentiment,
+                batch_size=args.advanced_batch_size,  # Updated to use advanced_batch_size
                 console=console
             )
             advanced_stats = advanced_analyzer.analyze_advanced()
             console.print("[green]Advanced analysis complete")
+            
         with console.status("Generating reports..."):
             output_dir = Path(args.output_dir)
             output_dir.mkdir(parents=True, exist_ok=True)
