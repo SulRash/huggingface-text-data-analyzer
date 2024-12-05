@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from collections import Counter
 from rich.console import Console
 
-from src.base_analyzer import BaseAnalyzer
-from src.utils import create_progress
+from .base_analyzer import BaseAnalyzer
+from .utils import create_progress
 
 @dataclass
 class AdvancedFieldStats:

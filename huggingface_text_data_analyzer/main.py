@@ -1,10 +1,10 @@
 from transformers import AutoTokenizer
 from rich.panel import Panel
 
-from src.base_analyzer import BaseAnalyzer
-from src.advanced_analyzer import AdvancedAnalyzer
-from src.report_generator import ReportGenerator
-from src.utils import parse_args, setup_logging
+from .base_analyzer import BaseAnalyzer
+from .advanced_analyzer import AdvancedAnalyzer
+from .report_generator import ReportGenerator
+from .utils import parse_args, setup_logging
 
 def main():
     args = parse_args()

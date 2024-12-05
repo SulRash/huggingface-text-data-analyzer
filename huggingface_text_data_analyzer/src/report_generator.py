@@ -1,8 +1,8 @@
 from typing import Optional
 from pathlib import Path
 
-from src.base_analyzer import DatasetStats
-from src.advanced_analyzer import AdvancedDatasetStats
+from .base_analyzer import DatasetStats
+from .advanced_analyzer import AdvancedDatasetStats
 
 class ReportGenerator:
     def __init__(self, output_dir: Path):

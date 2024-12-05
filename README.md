@@ -1,4 +1,4 @@
-# Dataset Analysis Tool
+# Huggingface Text Data Analyzer
 
 A comprehensive tool for analyzing text datasets from HuggingFace's datasets library. This tool provides both basic text statistics and advanced NLP analysis capabilities with optimized performance for large datasets.
 
@@ -22,43 +22,45 @@ A comprehensive tool for analyzing text datasets from HuggingFace's datasets lib
 
 ## Installation
 
+### From PyPI
+```bash
+pip install huggingface-text-data-analyzer
+```
+
+### From Source
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/dataset-analysis-tool.git
-cd dataset-analysis-tool
+git clone https://github.com/yourusername/huggingface-text-data-analyzer.git
+cd huggingface-text-data-analyzer
 ```
 
-2. Create a virtual environment and activate it:
+2. Install in development mode:
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -e .
 ```
 
-3. Install the required packages:
-```bash
-pip install -r requirements.txt
-```
-
-4. Install spaCy's English model (if using advanced analysis):
+3. Install spaCy's English model (if using advanced analysis):
 ```bash
 python -m spacy download en_core_web_sm
 ```
 
 ## Usage
 
+The tool is available as a command-line application after installation. You can run it using the `analyze-dataset` command:
+
 Basic usage:
 ```bash
-python main.py "dataset_name" --split "train" --output-dir "results"
+analyze-dataset "dataset_name" --split "train" --output-dir "results"
 ```
 
 With tokenizer analysis:
 ```bash
-python main.py "dataset_name" --tokenizer "bert-base-uncased"
+analyze-dataset "dataset_name" --tokenizer "bert-base-uncased"
 ```
 
 Analyze specific fields with chat template:
 ```bash
-python main.py "dataset_name" \
+analyze-dataset "dataset_name" \
     --fields instruction response \
     --chat-field response \
     --tokenizer "meta-llama/Llama-2-7b-chat-hf"
@@ -66,7 +68,7 @@ python main.py "dataset_name" \
 
 Full analysis with all features:
 ```bash
-python main.py "dataset_name" \
+analyze-dataset "dataset_name" \
     --advanced \
     --use-pos \
     --use-ner \
@@ -94,18 +96,42 @@ python main.py "dataset_name" \
 - `--use-lang`: Include language detection
 - `--use-sentiment`: Include sentiment analysis
 
+### Python API
+
+You can also use the tool programmatically in your Python code:
+
+```python
+from huggingface_text_data_analyzer import BaseAnalyzer, AdvancedAnalyzer
+
+# Basic analysis
+analyzer = BaseAnalyzer(
+    dataset_name="your_dataset",
+    split="train",
+    tokenizer="bert-base-uncased"
+)
+results = analyzer.analyze()
+
+# Advanced analysis
+advanced_analyzer = AdvancedAnalyzer(
+    dataset_name="your_dataset",
+    split="train",
+    use_pos=True,
+    use_ner=True
+)
+advanced_results = advanced_analyzer.analyze_advanced()
+```
+
 ## Project Structure
 
 ```
-dataset-analysis-tool/
+huggingface_text_data_analyzer/
 ├── src/
 │   ├── base_analyzer.py      # Basic text analysis functionality
 │   ├── advanced_analyzer.py  # Model-based advanced analysis
 │   ├── report_generator.py   # Markdown report generation
 │   └── utils.py             # Utility functions and argument parsing
-├── main.py                  # Main script
-├── requirements.txt         # Project dependencies
-└── README.md               # This file
+├── cli.py                   # Command-line interface
+└── __init__.py             # Package initialization
 ```
 
 ## Output
@@ -132,7 +158,7 @@ The tool generates markdown reports in the specified output directory:
 - spacy
 - fasttext
 - rich
-- torch (for transformers)
+- torch
 - pandas
 - numpy
 - scikit-learn (for advanced features)

@@ -12,7 +12,7 @@ import os
 import pickle
 from pathlib import Path
 
-from src.utils import create_progress
+from .utils import create_progress
 
 @dataclass
 class FieldStats:
