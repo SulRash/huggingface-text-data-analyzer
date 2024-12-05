@@ -63,14 +63,15 @@ class AdvancedAnalyzer(BaseAnalyzer):
                     os.system("python -m spacy download en_core_web_sm")
                     self.nlp = spacy.load("en_core_web_sm")
                     self.console.log("Loaded spaCy model")
-            
+        
         if use_lang:
             with self.console.status("Loading language detection model..."):
                 try:
                     self.lang_model = pipeline(
                         "text-classification", 
                         model="papluca/xlm-roberta-base-language-detection",
-                        batch_size=self.batch_size
+                        batch_size=self.batch_size,
+                        device=self.device
                     )
                     self.console.log("Loaded language detection model")
                 except Exception as e:
@@ -82,7 +83,8 @@ class AdvancedAnalyzer(BaseAnalyzer):
                 self.sentiment_analyzer = pipeline(
                     "sentiment-analysis", 
                     model="distilbert/distilbert-base-uncased-finetuned-sst-2-english",
-                    batch_size=self.batch_size
+                    batch_size=self.batch_size,
+                    device=self.device
                 )
                 self.console.log("Loaded sentiment analysis model")
 
