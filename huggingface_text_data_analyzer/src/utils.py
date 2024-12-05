@@ -67,6 +67,7 @@ class CacheManager:
 # Modified AnalysisArguments and parse_args
 class AnalysisArguments(NamedTuple):
     dataset_name: str
+    subset: Optional[str]
     split: str
     output_dir: Path
     tokenizer: str
@@ -91,6 +92,10 @@ def create_progress() -> Progress:
         console=Console()
     )
 
+def setup_logging() -> Console:
+    """Create and return a Console instance for logging."""
+    return Console()
+
 def parse_args() -> AnalysisArguments:
     parser = ArgumentParser(description="Analyze text dataset from HuggingFace")
     parser.add_argument("dataset_name", help="Name of the dataset on HuggingFace")
@@ -113,6 +118,7 @@ def parse_args() -> AnalysisArguments:
     args = parser.parse_args()
     return AnalysisArguments(
         dataset_name=args.dataset_name,
+        subset=args.subset,
         split=args.split,
         output_dir=args.output_dir,
         tokenizer=args.tokenizer,

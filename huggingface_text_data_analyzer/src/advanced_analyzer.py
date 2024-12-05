@@ -5,6 +5,9 @@ import fasttext
 from dataclasses import dataclass
 from collections import Counter
 from rich.console import Console
+import urllib.request
+import os
+from pathlib import Path
 
 from .base_analyzer import BaseAnalyzer
 from .utils import create_progress
@@ -23,10 +26,13 @@ class AdvancedDatasetStats:
     overall_stats: AdvancedFieldStats
 
 class AdvancedAnalyzer(BaseAnalyzer):
+    FASTTEXT_MODEL_URL = "https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin"
+    
     def __init__(
         self,
         dataset_name: str,
         split: str = "train",
+        subset: Optional[str] = None,
         use_pos: bool = True,
         use_ner: bool = True,
         use_lang: bool = True,
@@ -34,7 +40,7 @@ class AdvancedAnalyzer(BaseAnalyzer):
         use_topics: bool = True,
         console: Optional[Console] = None
     ):
-        super().__init__(dataset_name, split, console=console)
+        super().__init__(dataset_name, split=split, subset=subset, console=console)
         self.use_pos = use_pos
         self.use_ner = use_ner
         self.use_lang = use_lang
@@ -45,19 +51,43 @@ class AdvancedAnalyzer(BaseAnalyzer):
         
         if use_pos or use_ner:
             with self.console.status("Loading spaCy model..."):
-                self.nlp = spacy.load("en_core_web_sm")
-            self.console.log("Loaded spaCy model")
+                try:
+                    self.nlp = spacy.load("en_core_web_sm")
+                    self.console.log("Loaded spaCy model")
+                except OSError:
+                    self.console.log("[yellow]Downloading spaCy model...[/yellow]")
+                    os.system("python -m spacy download en_core_web_sm")
+                    self.nlp = spacy.load("en_core_web_sm")
+                    self.console.log("Loaded spaCy model")
             
         if use_lang:
             with self.console.status("Loading FastText model..."):
-                self.lang_model = fasttext.load_model("lid.176.bin")
-            self.console.log("Loaded FastText model")
+                model_path = self._get_fasttext_model()
+                try:
+                    self.lang_model = fasttext.load_model(str(model_path))
+                    self.console.log("Loaded FastText model")
+                except Exception as e:
+                    self.console.log(f"[red]Failed to load FastText model: {str(e)}[/red]")
+                    self.use_lang = False
             
         if use_sentiment:
             with self.console.status("Loading sentiment analysis model..."):
                 self.sentiment_analyzer = pipeline("sentiment-analysis")
-            self.console.log("Loaded sentiment analysis model")
-            
+                self.console.log("Loaded sentiment analysis model")
+
+    def _get_fasttext_model(self) -> Path:
+        """Download and return path to FastText model."""
+        cache_dir = Path.home() / ".cache" / "huggingface-text-data-analyzer" / "models"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        model_path = cache_dir / "lid.176.bin"
+        
+        if not model_path.exists():
+            self.console.log("[yellow]Downloading FastText language detection model...[/yellow]")
+            urllib.request.urlretrieve(self.FASTTEXT_MODEL_URL, model_path)
+            self.console.log("[green]FastText model downloaded successfully[/green]")
+        
+        return model_path
+
     def get_pos_distribution(self, text: str) -> Dict[str, float]:
         if not self.use_pos:
             return {}
