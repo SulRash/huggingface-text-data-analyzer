@@ -13,16 +13,20 @@ class CacheManager:
         self.cache_dir = Path.home() / ".cache" / "huggingface-text-data-analyzer"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
-    def get_cache_path(self, dataset_name: str, split: str, field_name: str, tokenizer_name: str) -> Path:
+    def get_cache_path(self, dataset_name: str, subset: Optional[str], split: str, field_name: str, tokenizer_name: str) -> Path:
         """Generate a unique cache path for the given parameters."""
         safe_name = "".join(c if c.isalnum() else "_" for c in dataset_name)
         safe_field = "".join(c if c.isalnum() else "_" for c in field_name)
-        filename = f"{safe_name}_{split}_{safe_field}_{tokenizer_name}_tokens.pkl"
+        if subset:
+            safe_subset = "".join(c if c.isalnum() else "_" for c in subset)
+            filename = f"{safe_name}_{safe_subset}_{split}_{safe_field}_{tokenizer_name}_tokens.pkl"
+        else:
+            filename = f"{safe_name}_{split}_{safe_field}_{tokenizer_name}_tokens.pkl"
         return self.cache_dir / filename
     
-    def load_from_cache(self, dataset_name: str, split: str, field_name: str, tokenizer_name: str) -> Optional[Any]:
+    def load_from_cache(self, dataset_name: str, subset: Optional[str], split: str, field_name: str, tokenizer_name: str) -> Optional[Any]:
         """Load data from cache if it exists."""
-        cache_path = self.get_cache_path(dataset_name, split, field_name, tokenizer_name)
+        cache_path = self.get_cache_path(dataset_name, subset, split, field_name, tokenizer_name)
         if cache_path.exists():
             try:
                 self.console.log(f"Loading cached tokens for {field_name}")
@@ -33,13 +37,13 @@ class CacheManager:
                 return None
         return None
     
-    def save_to_cache(self, data: Any, dataset_name: str, split: str, field_name: str, tokenizer_name: str) -> None:
+    def save_to_cache(self, data: Any, dataset_name: str, subset: Optional[str], split: str, field_name: str, tokenizer_name: str) -> None:
         """Save data to cache."""
-        cache_path = self.get_cache_path(dataset_name, split, field_name, tokenizer_name)
+        cache_path = self.get_cache_path(dataset_name, subset, split, field_name, tokenizer_name)
         try:
             self.console.log(f"Saving tokens to cache for {field_name}")
             with open(cache_path, 'wb') as f:
-                pickle.load(data, f)
+                pickle.dump(data, f)
         except Exception as e:
             self.console.log(f"[yellow]Warning: Failed to save cache for {field_name}: {str(e)}[/yellow]")
     
@@ -74,6 +78,8 @@ class AnalysisArguments(NamedTuple):
     batch_size: int
     fields: List[str] | None
     clear_cache: bool  # New argument
+
+
 
 def parse_args() -> AnalysisArguments:
     parser = ArgumentParser(description="Analyze text dataset from HuggingFace")

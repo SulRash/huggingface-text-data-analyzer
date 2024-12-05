@@ -92,6 +92,7 @@ class BaseAnalyzer:
         tokenizer_name = self.tokenizer.__class__.__name__
         cached_tokens = self.cache_manager.load_from_cache(
             self.dataset_name,
+            self.subset,
             self.split,
             field_name,
             tokenizer_name
@@ -139,6 +140,7 @@ class BaseAnalyzer:
         self.cache_manager.save_to_cache(
             all_tokens,
             self.dataset_name,
+            self.subset,
             self.split,
             field_name,
             tokenizer_name
