@@ -4,23 +4,30 @@
 
 A comprehensive tool for analyzing text datasets from HuggingFace's datasets library. This tool provides both basic text statistics and advanced NLP analysis capabilities with optimized performance for large datasets.
 
-## Features
+## Analysis Types
 
-### Basic Analysis
+The tool supports two types of analysis that can be run independently or together:
+
+### Basic Analysis (Default)
 - Average text length per field
 - Word distribution analysis
 - Junk text detection (HTML tags, special characters)
-- Tokenizer-based analysis (optional)
+- Tokenizer-based analysis (when tokenizer is specified)
 - Token length statistics with batch processing
-- Word distribution visualization
-- Chat template support for conversational data
-- Field-specific analysis
 
 ### Advanced Analysis (Optional)
 - Part-of-Speech (POS) tagging
 - Named Entity Recognition (NER)
 - Language detection using XLM-RoBERTa
 - Sentiment analysis using distilbert-sst-2-english
+
+You can control which analyses to run using these flags:
+- `--skip-basic`: Skip basic analysis (must be used with `--advanced`)
+- `--advanced`: Enable advanced analysis
+- `--use-pos`: Enable POS tagging
+- `--use-ner`: Enable NER
+- `--use-lang`: Enable language detection
+- `--use-sentiment`: Enable sentiment analysis
 
 ## Installation
 
@@ -66,6 +73,21 @@ analyze-dataset "dataset_name" \
     --fields instruction response \
     --chat-field response \
     --tokenizer "meta-llama/Llama-2-7b-chat-hf"
+```
+
+Run only advanced analysis:
+```bash
+analyze-dataset "dataset_name" --skip-basic --advanced --use-pos --use-lang
+```
+
+Run both analyses:
+```bash
+analyze-dataset "dataset_name" --advanced --use-sentiment
+```
+
+Run basic analysis only (default):
+```bash
+analyze-dataset "dataset_name"
 ```
 
 Full analysis with all features:

@@ -70,6 +70,7 @@ class AnalysisArguments(NamedTuple):
     split: str
     output_dir: Path
     tokenizer: str
+    skip_basic: bool
     advanced: bool
     use_pos: bool
     use_ner: bool
@@ -105,6 +106,8 @@ def parse_args() -> AnalysisArguments:
     parser.add_argument("--output-dir", type=Path, default=Path("analysis_results"),
                        help="Directory to save analysis results")
     parser.add_argument("--tokenizer", help="HuggingFace tokenizer to use (optional)")
+    parser.add_argument("--skip-basic", action="store_true", 
+                       help="Skip basic analysis (word counts, distributions, etc.)")
     parser.add_argument("--advanced", action="store_true", help="Run advanced analysis with models")
     parser.add_argument("--use-pos", action="store_true", help="Include POS tagging analysis")
     parser.add_argument("--use-ner", action="store_true", help="Include NER analysis")
@@ -126,12 +129,17 @@ def parse_args() -> AnalysisArguments:
     )
     
     args = parser.parse_args()
+    
+    if args.skip_basic and not args.advanced:
+        parser.error("Cannot skip basic analysis without enabling advanced analysis (--advanced)")
+    
     return AnalysisArguments(
         dataset_name=args.dataset_name,
         subset=args.subset,
         split=args.split,
         output_dir=args.output_dir,
         tokenizer=args.tokenizer,
+        skip_basic=args.skip_basic,
         advanced=args.advanced,
         use_pos=args.use_pos,
         use_ner=args.use_ner,
