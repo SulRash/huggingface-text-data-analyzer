@@ -28,6 +28,7 @@ class AdvancedAnalyzer(BaseAnalyzer):
         dataset_name: str,
         split: str = "train",
         subset: Optional[str] = None,
+        fields: Optional[List[str]] = None,
         use_pos: bool = True,
         use_ner: bool = True,
         use_lang: bool = True,
@@ -35,7 +36,7 @@ class AdvancedAnalyzer(BaseAnalyzer):
         use_topics: bool = True,
         console: Optional[Console] = None
     ):
-        super().__init__(dataset_name, split=split, subset=subset, console=console)
+        super().__init__(dataset_name, split=split, subset=subset, console=console, fields=fields)
         self.use_pos = use_pos
         self.use_ner = use_ner
         self.use_lang = use_lang

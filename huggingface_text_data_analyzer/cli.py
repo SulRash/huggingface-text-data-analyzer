@@ -51,8 +51,9 @@ def run_analysis(args, console: Console = None):
             console.rule("[bold cyan]Advanced Analysis")
             advanced_analyzer = AdvancedAnalyzer(
                 dataset_name=args.dataset_name,
-                subset=args.subset,  # Add subset here too
+                subset=args.subset,
                 split=args.split,
+                fields=args.fields,
                 use_pos=args.use_pos,
                 use_ner=args.use_ner,
                 use_lang=args.use_lang,
