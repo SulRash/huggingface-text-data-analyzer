@@ -78,6 +78,7 @@ class AnalysisArguments(NamedTuple):
 def parse_args() -> AnalysisArguments:
     parser = ArgumentParser(description="Analyze text dataset from HuggingFace")
     parser.add_argument("dataset_name", help="Name of the dataset on HuggingFace")
+    parser.add_argument("--subset", help="Dataset configuration/subset name (if applicable)")
     parser.add_argument("--split", default="train", help="Dataset split to analyze")
     parser.add_argument("--output-dir", type=Path, default=Path("analysis_results"),
                        help="Directory to save analysis results")

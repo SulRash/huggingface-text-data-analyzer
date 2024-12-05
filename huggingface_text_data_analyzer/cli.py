@@ -15,7 +15,10 @@ def run_analysis(args, console: Console = None):
     
     try:
         console.rule("[bold blue]Dataset Analysis Tool")
-        console.print(f"Starting analysis of dataset: {args.dataset_name}")
+        if args.subset:
+            console.print(f"Starting analysis of dataset: {args.dataset_name} (subset: {args.subset})")
+        else:
+            console.print(f"Starting analysis of dataset: {args.dataset_name}")
 
         # Handle cache clearing
         cache_manager = CacheManager(console=console)
@@ -32,6 +35,7 @@ def run_analysis(args, console: Console = None):
         console.rule("[bold cyan]Basic Analysis")
         base_analyzer = BaseAnalyzer(
             dataset_name=args.dataset_name,
+            subset=args.subset,
             split=args.split,
             tokenizer=tokenizer,
             console=console,
@@ -47,6 +51,7 @@ def run_analysis(args, console: Console = None):
             console.rule("[bold cyan]Advanced Analysis")
             advanced_analyzer = AdvancedAnalyzer(
                 dataset_name=args.dataset_name,
+                subset=args.subset,  # Add subset here too
                 split=args.split,
                 use_pos=args.use_pos,
                 use_ner=args.use_ner,
@@ -56,7 +61,6 @@ def run_analysis(args, console: Console = None):
             )
             advanced_stats = advanced_analyzer.analyze_advanced()
             console.print("[green]Advanced analysis complete")
-
         with console.status("Generating reports..."):
             output_dir = Path(args.output_dir)
             output_dir.mkdir(parents=True, exist_ok=True)

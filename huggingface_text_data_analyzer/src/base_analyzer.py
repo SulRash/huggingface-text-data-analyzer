@@ -26,6 +26,7 @@ class BaseAnalyzer:
         self,
         dataset_name: str,
         split: str = "train",
+        subset: Optional[str] = None,
         tokenizer: Optional[PreTrainedTokenizer] = None,
         console: Optional[Console] = None,
         chat_field: Optional[str] = None,
@@ -33,13 +34,19 @@ class BaseAnalyzer:
         fields: Optional[List[str]] = None,
     ):
         self.console = console or Console()
-        self.console.log(f"Loading dataset: {dataset_name} (split: {split})")
-        self.dataset = load_dataset(dataset_name, split=split)
+        if subset:
+            self.console.log(f"Loading dataset: {dataset_name} (subset: {subset}, split: {split})")
+            self.dataset = load_dataset(dataset_name, subset, split=split)
+        else:
+            self.console.log(f"Loading dataset: {dataset_name} (split: {split})")
+            self.dataset = load_dataset(dataset_name, split=split)
+            
         self.tokenizer = tokenizer
         self.chat_field = chat_field
         self.batch_size = batch_size
         self.fields = fields
         self.dataset_name = dataset_name
+        self.subset = subset
         self.split = split
         self.cache_manager = CacheManager(console=self.console)
         
@@ -50,7 +57,7 @@ class BaseAnalyzer:
                     self.console.log(f"Chat template will be applied to field: {chat_field}")
                 else:
                     self.console.log("[yellow]Warning: Tokenizer does not have a chat template[/yellow]")
-
+        
     def calculate_overall_stats(self, field_stats: Dict[str, FieldStats]) -> FieldStats:
         total_texts = sum(len(self.dataset[field]) for field in field_stats.keys())
         
