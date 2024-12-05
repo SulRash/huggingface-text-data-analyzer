@@ -17,7 +17,7 @@ A comprehensive tool for analyzing text datasets from HuggingFace's datasets lib
 ### Advanced Analysis (Optional)
 - Part-of-Speech (POS) tagging
 - Named Entity Recognition (NER)
-- Language detection
+- Language detection using XLM-RoBERTa
 - Sentiment analysis
 
 ## Installation
@@ -120,7 +120,6 @@ advanced_analyzer = AdvancedAnalyzer(
 )
 advanced_results = advanced_analyzer.analyze_advanced()
 ```
-
 ## Project Structure
 
 ```
@@ -156,7 +155,6 @@ The tool generates markdown reports in the specified output directory:
 - transformers
 - datasets
 - spacy
-- fasttext
 - rich
 - torch
 - pandas

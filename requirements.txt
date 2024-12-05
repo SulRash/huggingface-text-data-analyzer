@@ -6,7 +6,6 @@ rich>=13.4.2
 
 # NLP models and tools
 spacy>=3.6.0
-fasttext-wheel>=0.9.2
 nltk>=3.8.1
 
 # Data processing
