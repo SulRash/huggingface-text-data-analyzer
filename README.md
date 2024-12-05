@@ -18,7 +18,7 @@ A comprehensive tool for analyzing text datasets from HuggingFace's datasets lib
 - Part-of-Speech (POS) tagging
 - Named Entity Recognition (NER)
 - Language detection using XLM-RoBERTa
-- Sentiment analysis
+- Sentiment analysis using distilbert-sst-2-english
 
 ## Installation
 

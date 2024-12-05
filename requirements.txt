@@ -12,6 +12,10 @@ nltk>=3.8.1
 pandas>=2.0.0
 numpy>=1.24.0
 
+# Visualization
+seaborn>=0.12.0
+matplotlib>=3.7.0
+
 # Progress bars and logging
 tqdm>=4.65.0
 
@@ -20,8 +24,6 @@ typing-extensions>=4.5.0
 
 # Optional dependencies for advanced features
 scikit-learn>=1.3.0  # for additional metrics
-matplotlib>=3.7.0    # for visualizations
-seaborn>=0.12.0     # for enhanced visualizations
 
 # Development dependencies
 black>=23.3.0

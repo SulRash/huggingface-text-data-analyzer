@@ -67,7 +67,7 @@ class AdvancedAnalyzer(BaseAnalyzer):
             
         if use_sentiment:
             with self.console.status("Loading sentiment analysis model..."):
-                self.sentiment_analyzer = pipeline("sentiment-analysis")
+                self.sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert/distilbert-base-uncased-finetuned-sst-2-english")
                 self.console.log("Loaded sentiment analysis model")
 
     def get_pos_distribution(self, text: str) -> Dict[str, float]:

@@ -79,7 +79,8 @@ class AnalysisArguments(NamedTuple):
     chat_field: str | None
     batch_size: int
     fields: List[str] | None
-    clear_cache: bool  # New argument
+    clear_cache: bool
+    output_format: str
 
 def create_progress() -> Progress:
     """Create a consistent progress bar for the application."""
@@ -115,6 +116,13 @@ def parse_args() -> AnalysisArguments:
                        help="Specific fields to analyze. If not specified, all text fields will be analyzed")
     parser.add_argument("--clear-cache", action="store_true", help="Clear cache before analysis")
     
+    parser.add_argument(
+        "--output-format",
+        choices=["markdown", "graphs", "both"],
+        default="both",
+        help="Output format for analysis results (default: both)"
+    )
+    
     args = parser.parse_args()
     return AnalysisArguments(
         dataset_name=args.dataset_name,
@@ -130,5 +138,6 @@ def parse_args() -> AnalysisArguments:
         chat_field=args.chat_field,
         batch_size=args.batch_size,
         fields=args.fields,
-        clear_cache=args.clear_cache
+        clear_cache=args.clear_cache,
+        output_format=args.output_format
     )

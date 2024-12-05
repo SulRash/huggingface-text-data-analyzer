@@ -3,11 +3,17 @@ from pathlib import Path
 
 from .base_analyzer import DatasetStats
 from .advanced_analyzer import AdvancedDatasetStats
+from .viz_generator import VisualizationGenerator
 
 class ReportGenerator:
-    def __init__(self, output_dir: Path):
+    def __init__(self, output_dir: Path, output_format: str = "both"):
         self.output_dir = output_dir
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.output_format = output_format
+        self.markdown_dir = output_dir / "markdown"
+        if self.output_format in ["markdown", "both"]:
+            self.markdown_dir.mkdir(parents=True, exist_ok=True)
+        if self.output_format in ["graphs", "both"]:
+            self.viz_generator = VisualizationGenerator(output_dir)
         
     def generate_basic_stats_table(self, stats: DatasetStats) -> str:
         markdown = "# Basic Dataset Statistics\n\n"
@@ -109,16 +115,24 @@ class ReportGenerator:
         basic_stats: DatasetStats,
         advanced_stats: Optional[AdvancedDatasetStats] = None
     ) -> None:
-        basic_stats_md = self.generate_basic_stats_table(basic_stats)
-        word_dist_md = self.generate_word_distribution_section(basic_stats)
-        
-        with open(self.output_dir / "basic_stats.md", "w") as f:
-            f.write(basic_stats_md)
+        if self.output_format in ["markdown", "both"]:
+            # Generate markdown reports
+            basic_stats_md = self.generate_basic_stats_table(basic_stats)
+            word_dist_md = self.generate_word_distribution_section(basic_stats)
             
-        with open(self.output_dir / "word_distribution.md", "w") as f:
-            f.write(word_dist_md)
-            
-        if advanced_stats:
-            advanced_stats_md = self.generate_advanced_stats_table(advanced_stats)
-            with open(self.output_dir / "advanced_stats.md", "w") as f:
-                f.write(advanced_stats_md)
+            with open(self.markdown_dir / "basic_stats.md", "w") as f:
+                f.write(basic_stats_md)
+                
+            with open(self.markdown_dir / "word_distribution.md", "w") as f:
+                f.write(word_dist_md)
+                
+            if advanced_stats:
+                advanced_stats_md = self.generate_advanced_stats_table(advanced_stats)
+                with open(self.markdown_dir / "advanced_stats.md", "w") as f:
+                    f.write(advanced_stats_md)
+
+        if self.output_format in ["graphs", "both"]:
+            # Generate visualization plots
+            self.viz_generator.generate_basic_stats_plots(basic_stats)
+            if advanced_stats:
+                self.viz_generator.generate_advanced_stats_plots(advanced_stats)
