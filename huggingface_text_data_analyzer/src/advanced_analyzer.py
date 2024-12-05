@@ -1,13 +1,10 @@
 from typing import Dict, List, Optional
 from transformers import pipeline
 import spacy
-import fasttext
 from dataclasses import dataclass
 from collections import Counter
 from rich.console import Console
-import urllib.request
 import os
-from pathlib import Path
 
 from .base_analyzer import BaseAnalyzer
 from .utils import create_progress
@@ -23,10 +20,8 @@ class AdvancedFieldStats:
 @dataclass
 class AdvancedDatasetStats:
     field_stats: Dict[str, AdvancedFieldStats]
-    overall_stats: AdvancedFieldStats
 
 class AdvancedAnalyzer(BaseAnalyzer):
-    FASTTEXT_MODEL_URL = "https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin"
     
     def __init__(
         self,
@@ -61,32 +56,18 @@ class AdvancedAnalyzer(BaseAnalyzer):
                     self.console.log("Loaded spaCy model")
             
         if use_lang:
-            with self.console.status("Loading FastText model..."):
-                model_path = self._get_fasttext_model()
+            with self.console.status("Loading language detection model..."):
                 try:
-                    self.lang_model = fasttext.load_model(str(model_path))
-                    self.console.log("Loaded FastText model")
+                    self.lang_model = pipeline("text-classification", model="papluca/xlm-roberta-base-language-detection")
+                    self.console.log("Loaded language detection model")
                 except Exception as e:
-                    self.console.log(f"[red]Failed to load FastText model: {str(e)}[/red]")
+                    self.console.log(f"[red]Failed to load language detection model: {str(e)}[/red]")
                     self.use_lang = False
             
         if use_sentiment:
             with self.console.status("Loading sentiment analysis model..."):
                 self.sentiment_analyzer = pipeline("sentiment-analysis")
                 self.console.log("Loaded sentiment analysis model")
-
-    def _get_fasttext_model(self) -> Path:
-        """Download and return path to FastText model."""
-        cache_dir = Path.home() / ".cache" / "huggingface-text-data-analyzer" / "models"
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        model_path = cache_dir / "lid.176.bin"
-        
-        if not model_path.exists():
-            self.console.log("[yellow]Downloading FastText language detection model...[/yellow]")
-            urllib.request.urlretrieve(self.FASTTEXT_MODEL_URL, model_path)
-            self.console.log("[green]FastText model downloaded successfully[/green]")
-        
-        return model_path
 
     def get_pos_distribution(self, text: str) -> Dict[str, float]:
         if not self.use_pos:
@@ -101,26 +82,47 @@ class AdvancedAnalyzer(BaseAnalyzer):
             return {}
         doc = self.nlp(text)
         return Counter([ent.label_ for ent in doc.ents])
-    
-    def detect_language(self, text: str) -> Dict[str, float]:
-        if not self.use_lang:
-            return {}
-        predictions = self.lang_model.predict(text, k=3)
-        return {lang: prob for lang, prob in zip(*predictions)}
-    
-    def analyze_sentiment(self, text: str) -> Dict[str, float]:
-        if not self.use_sentiment:
-            return {}
-        result = self.sentiment_analyzer(text)[0]
-        return {"score": result["score"], "label": result["label"]}
-    
+
+    def detect_language(self, text: str) -> str:
+        """Detect language of text with proper error handling."""
+        if not self.use_lang or not text:
+            return "unknown"
+            
+        try:
+            result = self.lang_model(text, truncation=True, max_length=512)
+            return result[0]['label'] if result else "unknown"
+        except Exception as e:
+            self.console.log(f"[yellow]Warning: Language detection failed: {str(e)}[/yellow]")
+            return "unknown"
+
+    def analyze_sentiment(self, text: str) -> str:
+        """Analyze sentiment of a text, with proper error handling."""
+        try:
+            # First truncate the text if it's too long
+            if len(text.split()) > 512:
+                text = " ".join(text.split()[:512])
+            
+            # Get the prediction and extract just the label
+            result = self.sentiment_analyzer(
+                text,
+                truncation=True,
+                max_length=512,
+                padding=True
+            )
+            # Result is a list with one dict, extract just the label
+            return result[0]['label'] if result else "NEUTRAL"
+        except Exception as e:
+            self.console.log(f"[yellow]Warning: Sentiment analysis failed: {str(e)}[/yellow]")
+            return "NEUTRAL"
+
     def analyze_field_advanced(self, texts: List[str], field_name: str) -> AdvancedFieldStats:
+        """Analyze a single field with advanced NLP features."""
         self.console.log(f"Running advanced analysis on field: {field_name}")
         
-        pos_dist = {}
-        entities = {}
-        lang_dist = {}
-        sentiment_scores = {}
+        pos_dist = Counter()
+        entities = Counter()
+        lang_dist = Counter()
+        sentiment_scores = Counter()
         
         with create_progress() as progress:
             total = len(texts)
@@ -130,57 +132,84 @@ class AdvancedAnalyzer(BaseAnalyzer):
             sent_task = progress.add_task(f"Sentiment analysis - {field_name}", total=total if self.use_sentiment else 0)
             
             for text in texts:
-                if self.use_pos:
-                    text_pos = self.get_pos_distribution(text)
-                    for pos, freq in text_pos.items():
-                        pos_dist[pos] = pos_dist.get(pos, 0) + freq
-                    progress.advance(pos_task)
+                if not text:  # Skip empty texts
+                    continue
                     
-                if self.use_ner:
-                    text_ents = self.get_entities(text)
-                    for ent, count in text_ents.items():
-                        entities[ent] = entities.get(ent, 0) + count
-                    progress.advance(ner_task)
+                # try:
+                if self.use_pos or self.use_ner:
+                    doc = self.nlp(text)
                     
+                    if self.use_pos:
+                        pos_dist.update(token.pos_ for token in doc)
+                        progress.advance(pos_task)
+                        
+                    if self.use_ner:
+                        entities.update(ent.label_ for ent in doc.ents)
+                        progress.advance(ner_task)
+                
                 if self.use_lang:
-                    text_lang = self.detect_language(text)
-                    for lang, prob in text_lang.items():
-                        lang_dist[lang] = lang_dist.get(lang, 0) + prob
+                    lang = self.detect_language(text)
+                    if lang:  # Only update if we got a valid language
+                        lang_dist.update([lang])
                     progress.advance(lang_task)
                     
                 if self.use_sentiment:
-                    sentiment = self.analyze_sentiment(text)
-                    sentiment_scores[sentiment["label"]] = sentiment_scores.get(sentiment["label"], 0) + 1
+                    sentiment_label = self.analyze_sentiment(text)
+                    if sentiment_label:  # Only update if we got a valid sentiment
+                        sentiment_scores.update([sentiment_label])
                     progress.advance(sent_task)
-        
-        n_texts = len(texts)
-        if n_texts > 0:
-            for pos in pos_dist:
-                pos_dist[pos] /= n_texts
-            for lang in lang_dist:
-                lang_dist[lang] /= n_texts
-                
+                        
+                # except Exception as e:
+                #     self.console.log(f"[yellow]Warning: Error processing text in {field_name}: {str(e)}[/yellow]")
+                #     continue
+
+        # Calculate distributions
+        total_texts = len([t for t in texts if t])  # Count non-empty texts
+        if total_texts > 0:
+            pos_distribution = {pos: count/total_texts for pos, count in pos_dist.items()}
+            language_dist = {lang: count/total_texts for lang, count in lang_dist.items()}
+            sentiment_dist = {label: count/total_texts for label, count in sentiment_scores.items()}
+        else:
+            pos_distribution = {}
+            language_dist = {}
+            sentiment_dist = {}
+
         return AdvancedFieldStats(
-            pos_distribution=pos_dist,
-            entities=entities,
-            language_dist=lang_dist,
-            sentiment_scores={k: v/n_texts for k, v in sentiment_scores.items()},
+            pos_distribution=pos_distribution,
+            entities=dict(entities),
+            language_dist=language_dist,
+            sentiment_scores=sentiment_dist,
             topics=[]
         )
-    
+
     def analyze_advanced(self) -> AdvancedDatasetStats:
-        text_fields = [field for field in self.dataset.features if isinstance(self.dataset.features[field], (str, dict))]
+        """Run advanced analysis on all text fields in the dataset."""
+        # Find text fields (reuse from parent class)
+        available_text_fields = [
+            field for field, feature in self.dataset.features.items()
+            if self.is_text_feature(feature)
+        ]
+        
+        if self.fields:
+            text_fields = [f for f in self.fields if f in available_text_fields]
+            if not text_fields:
+                raise ValueError("None of the specified fields were found or are text fields")
+        else:
+            text_fields = available_text_fields
+            
+        if not text_fields:
+            raise ValueError("No text fields found in dataset")
+            
         self.console.log(f"Running advanced analysis on {len(text_fields)} fields")
         
         field_stats = {}
         all_texts = []
         
         for field in text_fields:
-            texts = self.dataset[field]
-            all_texts.extend(texts)
-            field_stats[field] = self.analyze_field_advanced(texts, field)
-            
-        self.console.log("Calculating overall advanced statistics")
-        overall_stats = self.analyze_field_advanced(all_texts, "overall")
-        
-        return AdvancedDatasetStats(field_stats=field_stats, overall_stats=overall_stats)
+            texts = [self.extract_text(text) for text in self.dataset[field]]
+            texts = [t for t in texts if t]  # Filter out empty texts
+            if texts:  # Only analyze fields with non-empty texts
+                all_texts.extend(texts)
+                field_stats[field] = self.analyze_field_advanced(texts, field)
+                        
+        return AdvancedDatasetStats(field_stats=field_stats)

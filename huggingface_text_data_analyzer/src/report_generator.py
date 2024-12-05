@@ -44,37 +44,48 @@ class ReportGenerator:
         return markdown
     
     def generate_advanced_stats_table(self, stats: AdvancedDatasetStats) -> str:
+        if not stats.field_stats:
+            return "# Advanced Dataset Statistics\n\nNo advanced statistics available.\n"
+            
         markdown = "# Advanced Dataset Statistics\n\n"
+        first_field_stats = next(iter(stats.field_stats.values()))
         
         # POS Distribution
-        markdown += "## Part of Speech Distribution\n\n"
-        pos_headers = ["Field"] + list(next(iter(stats.field_stats.values())).pos_distribution.keys())
-        markdown += "| " + " | ".join(pos_headers) + " |\n"
-        markdown += "| " + " | ".join(["---" for _ in pos_headers]) + " |\n"
-        
-        for field, field_stat in stats.field_stats.items():
-            row = [field] + [f"{field_stat.pos_distribution.get(pos, 0):.2%}" for pos in pos_headers[1:]]
-            markdown += "| " + " | ".join(row) + " |\n"
+        if first_field_stats.pos_distribution:
+            markdown += "## Part of Speech Distribution\n\n"
+            pos_headers = ["Field"] + list(first_field_stats.pos_distribution.keys())
+            markdown += "| " + " | ".join(pos_headers) + " |\n"
+            markdown += "| " + " | ".join(["---" for _ in pos_headers]) + " |\n"
+            
+            for field, field_stat in stats.field_stats.items():
+                row = [field] + [f"{field_stat.pos_distribution.get(pos, 0):.2%}" for pos in pos_headers[1:]]
+                markdown += "| " + " | ".join(row) + " |\n"
             
         # Entity Distribution
-        markdown += "\n## Named Entity Distribution\n\n"
-        entity_headers = ["Field"] + list(next(iter(stats.field_stats.values())).entities.keys())
-        markdown += "| " + " | ".join(entity_headers) + " |\n"
-        markdown += "| " + " | ".join(["---" for _ in entity_headers]) + " |\n"
-        
-        for field, field_stat in stats.field_stats.items():
-            row = [field] + [str(field_stat.entities.get(ent, 0)) for ent in entity_headers[1:]]
-            markdown += "| " + " | ".join(row) + " |\n"
+        if first_field_stats.entities:
+            markdown += "\n## Named Entity Distribution\n\n"
+            entity_headers = ["Field"] + list(first_field_stats.entities.keys())
+            markdown += "| " + " | ".join(entity_headers) + " |\n"
+            markdown += "| " + " | ".join(["---" for _ in entity_headers]) + " |\n"
+            
+            for field, field_stat in stats.field_stats.items():
+                row = [field] + [str(field_stat.entities.get(ent, 0)) for ent in entity_headers[1:]]
+                markdown += "| " + " | ".join(row) + " |\n"
             
         # Language Distribution
-        markdown += "\n## Language Distribution\n\n"
-        lang_headers = ["Field"] + list(next(iter(stats.field_stats.values())).language_dist.keys())
-        markdown += "| " + " | ".join(lang_headers) + " |\n"
-        markdown += "| " + " | ".join(["---" for _ in lang_headers]) + " |\n"
+        if first_field_stats.language_dist:
+            markdown += "\n## Language Distribution\n\n"
+            lang_headers = ["Field"] + list(first_field_stats.language_dist.keys())
+            markdown += "| " + " | ".join(lang_headers) + " |\n"
+            markdown += "| " + " | ".join(["---" for _ in lang_headers]) + " |\n"
+            
+            for field, field_stat in stats.field_stats.items():
+                row = [field] + [f"{field_stat.language_dist.get(lang, 0):.2%}" for lang in lang_headers[1:]]
+                markdown += "| " + " | ".join(row) + " |\n"
         
-        for field, field_stat in stats.field_stats.items():
-            row = [field] + [f"{field_stat.language_dist.get(lang, 0):.2%}" for lang in lang_headers[1:]]
-            markdown += "| " + " | ".join(row) + " |\n"
+        # If no statistics were added
+        if markdown == "# Advanced Dataset Statistics\n\n":
+            markdown += "No advanced statistics available.\n"
             
         return markdown
     
