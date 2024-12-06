@@ -1,4 +1,4 @@
-from pathlib import Path
+from typing import Optional
 from transformers import AutoTokenizer
 from rich.panel import Panel
 from rich.console import Console
@@ -6,16 +6,15 @@ from rich.console import Console
 from .src.base_analyzer import BaseAnalyzer
 from .src.advanced_analyzer import AdvancedAnalyzer
 from .src.report_generator import ReportGenerator
-from .src.utils import parse_args, setup_logging, CacheManager, AnalysisResults
+from .src.utils import parse_args, setup_logging, CacheManager
 
-from time import time
-
-def run_analysis(args, console: Console = None):
+def run_analysis(args, console: Optional[Console] = None) -> int:
     """Main analysis function that can be called programmatically or via CLI"""
     if console is None:
         console = setup_logging()
     
     try:
+        # Initial setup and dataset info display
         console.rule("[bold blue]Dataset Analysis Tool")
         if args.subset:
             console.print(f"Starting analysis of dataset: {args.dataset_name} (subset: {args.subset})")
@@ -23,42 +22,30 @@ def run_analysis(args, console: Console = None):
             console.print(f"Starting analysis of dataset: {args.dataset_name}")
 
         # Initialize cache manager
-        cache_manager = CacheManager(console=console)
+        cache_manager = CacheManager(console=console, no_prompt=args.no_prompt)
         
-        # Try to load existing results
-        cached_results = cache_manager.load_cached_results(
-            args.dataset_name,
-            args.subset,
-            args.split,
-            force=args.clear_cache
-        )
-        
-        # Initialize results with metadata
-        current_results = AnalysisResults(
-            dataset_name=args.dataset_name,
-            subset=args.subset,
-            split=args.split,
-            fields=args.fields,
-            tokenizer=args.tokenizer,
-            timestamp=time(),
-            basic_stats=cached_results.basic_stats if cached_results else None,
-            advanced_stats=cached_results.advanced_stats if cached_results else None
-        )
-
-        # Clear token cache if requested
+        # Handle cache clearing if requested
         if args.clear_cache:
-            cache_manager.clear_cache(args.dataset_name)
+            cache_manager.clear_cache(
+                dataset_name=args.dataset_name,
+                subset=args.subset,
+                split=args.split
+            )
             console.print("[green]Cache cleared successfully")
 
-        tokenizer = None
-        if args.tokenizer:
-            with console.status("Loading tokenizer..."):
-                tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
-            console.print(f"Loaded tokenizer: {args.tokenizer}")
+        basic_stats = None
+        advanced_stats = None
 
-        # Run basic analysis if needed
-        if not args.skip_basic and (not cached_results or not cached_results.basic_stats):
+        # Basic Analysis Section
+        if not args.skip_basic:
             console.rule("[bold cyan]Basic Analysis")
+            # Initialize tokenizer if needed
+            tokenizer = None
+            if args.tokenizer:
+                with console.status("Loading tokenizer..."):
+                    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
+                console.print(f"Loaded tokenizer: {args.tokenizer}")
+            
             base_analyzer = BaseAnalyzer(
                 dataset_name=args.dataset_name,
                 subset=args.subset,
@@ -67,19 +54,14 @@ def run_analysis(args, console: Console = None):
                 console=console,
                 chat_field=args.chat_field,
                 batch_size=args.basic_batch_size,
-                fields=args.fields
+                fields=args.fields,
+                cache_manager=cache_manager
             )
-            current_results = current_results._replace(
-                basic_stats=base_analyzer.analyze()
-            )
+            basic_stats = base_analyzer.analyze()
             console.print("[green]Basic analysis complete")
-            # Save intermediate results
-            cache_manager.save_results(current_results, force=True)
-        elif not args.skip_basic and cached_results and cached_results.basic_stats:
-            console.print("[cyan]Using cached basic analysis results")
 
-        # Run advanced analysis if needed
-        if args.advanced and (not cached_results or not cached_results.advanced_stats):
+        # Advanced Analysis Section
+        if args.advanced:
             console.rule("[bold cyan]Advanced Analysis")
             advanced_analyzer = AdvancedAnalyzer(
                 dataset_name=args.dataset_name,
@@ -91,49 +73,48 @@ def run_analysis(args, console: Console = None):
                 use_lang=args.use_lang,
                 use_sentiment=args.use_sentiment,
                 batch_size=args.advanced_batch_size,
-                console=console
+                console=console,
+                cache_manager=cache_manager  # Pass the cache manager to the analyzer
             )
-            current_results = current_results._replace(
-                advanced_stats=advanced_analyzer.analyze_advanced()
-            )
+            advanced_stats = advanced_analyzer.analyze_advanced()
             console.print("[green]Advanced analysis complete")
-            # Save final results
-            cache_manager.save_results(current_results, force=True)
-        elif args.advanced and cached_results and cached_results.advanced_stats:
-            console.print("[cyan]Using cached advanced analysis results")
 
-        # Generate reports
-        if current_results.basic_stats or current_results.advanced_stats:
+        # Report Generation Section
+        if basic_stats or advanced_stats:
             with console.status("Generating reports..."):
                 args.output_dir.mkdir(parents=True, exist_ok=True)
                 report_generator = ReportGenerator(args.output_dir, args.output_format)
-                report_generator.generate_report(
-                    current_results.basic_stats, 
-                    current_results.advanced_stats
-                )
+                report_generator.generate_report(basic_stats, advanced_stats)
             
             console.print(f"[green]Analysis complete! Results saved to {args.output_dir}")
             
-            # Print summary of analyses performed
+            # Analysis Summary
             console.rule("[bold blue]Analysis Summary")
             summary = []
             
-            if current_results.basic_stats:
+            # Add basic analysis steps to summary
+            if basic_stats:
                 summary.extend([
                     "✓ Basic text statistics",
-                    "✓ Tokenizer analysis" if tokenizer else "",
+                    "✓ Tokenizer analysis" if args.tokenizer else "",
                     f"✓ Chat template applied to {args.chat_field}" if args.chat_field else ""
                 ])
             
-            if current_results.advanced_stats:
-                summary.extend([
-                    "✓ Part-of-speech analysis" if args.use_pos else "",
-                    "✓ Named entity recognition" if args.use_ner else "",
-                    "✓ Language detection" if args.use_lang else "",
-                    "✓ Sentiment analysis" if args.use_sentiment else ""
-                ])
+            # Add advanced analysis steps to summary
+            if advanced_stats:
+                for field_stats in advanced_stats.field_stats.values():
+                    if field_stats.pos_distribution is not None:
+                        summary.append("✓ Part-of-speech analysis")
+                    if field_stats.entities is not None:
+                        summary.append("✓ Named entity recognition")
+                    if field_stats.language_dist is not None:
+                        summary.append("✓ Language detection")
+                    if field_stats.sentiment_scores is not None:
+                        summary.append("✓ Sentiment analysis")
+                    break  # We only need to check one field's stats
             
-            summary = [item for item in summary if item]  # Remove empty strings
+            # Remove empty strings and duplicates while maintaining order
+            summary = list(dict.fromkeys(item for item in summary if item))
             
             console.print(Panel(
                 "\n".join(summary),
@@ -141,7 +122,7 @@ def run_analysis(args, console: Console = None):
                 border_style="blue"
             ))
         else:
-            console.print("[yellow]No analysis was performed - using cached results[/yellow]")
+            console.print("[yellow]No analysis was performed and no cached results were used[/yellow]")
                 
     except Exception as e:
         console.print(Panel(

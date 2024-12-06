@@ -32,8 +32,11 @@ class BaseAnalyzer:
         chat_field: Optional[str] = None,
         batch_size: int = 1,
         fields: Optional[List[str]] = None,
+        cache_manager: Optional[CacheManager] = None
     ):
         self.console = console or Console()
+        self.cache_manager = cache_manager
+
         if subset:
             self.console.log(f"Loading dataset: {dataset_name} (subset: {subset}, split: {split})")
             self.dataset = load_dataset(dataset_name, subset, split=split)
@@ -90,7 +93,7 @@ class BaseAnalyzer:
             return []
 
         tokenizer_name = self.tokenizer.__class__.__name__
-        cached_tokens = self.cache_manager.load_from_cache(
+        cached_tokens = self.cache_manager.load_cached_results(
             self.dataset_name,
             self.subset,
             self.split,
@@ -137,7 +140,7 @@ class BaseAnalyzer:
                 progress.advance(task)
 
         # Save to cache
-        self.cache_manager.save_to_cache(
+        self.cache_manager.save_results(
             all_tokens,
             self.dataset_name,
             self.subset,
@@ -203,17 +206,13 @@ class BaseAnalyzer:
         )
 
     def analyze(self) -> DatasetStats:
-        # Find text fields
+        """Run basic analysis on all text fields in the dataset."""
         available_text_fields = [
             field for field, feature in self.dataset.features.items()
             if self.is_text_feature(feature)
         ]
         
         if self.fields:
-            invalid_fields = [f for f in self.fields if f not in available_text_fields]
-            if invalid_fields:
-                self.console.log(f"[yellow]Warning: Following fields were not found or are not text fields: {', '.join(invalid_fields)}[/yellow]")
-            
             text_fields = [f for f in self.fields if f in available_text_fields]
             if not text_fields:
                 raise ValueError("None of the specified fields were found or are text fields")
@@ -221,7 +220,6 @@ class BaseAnalyzer:
             text_fields = available_text_fields
             
         if not text_fields:
-            self.console.log("[red]Error: No text fields found in dataset[/red]")
             raise ValueError("No text fields found in dataset")
             
         self.console.log(f"Found {len(text_fields)} text fields to analyze: {', '.join(text_fields)}")
@@ -229,8 +227,30 @@ class BaseAnalyzer:
         field_stats = {}
         
         for field in text_fields:
-            texts = self.dataset[field]
-            field_stats[field] = self.analyze_field(texts, field)
+            cached_stats = self.cache_manager.load_cached_results(
+                self.dataset_name,
+                self.subset,
+                self.split,
+                field,
+                "basic"
+            )
+            
+            if cached_stats:
+                field_stats[field] = cached_stats
+                self.console.print(f"[cyan]Using cached basic analysis results for field: {field}")
+            else:
+                texts = self.dataset[field]
+                field_stats[field] = self.analyze_field(texts, field)
+                # Cache the results for this field
+                self.cache_manager.save_results(
+                    field_stats[field],
+                    self.dataset_name,
+                    self.subset,
+                    self.split,
+                    field,
+                    "basic",
+                    force=True
+                )
             
         self.console.log("Calculating overall statistics")
         overall_stats = self.calculate_overall_stats(field_stats)
