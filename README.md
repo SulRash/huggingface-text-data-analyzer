@@ -4,23 +4,30 @@
 
 A comprehensive tool for analyzing text datasets from HuggingFace's datasets library. This tool provides both basic text statistics and advanced NLP analysis capabilities with optimized performance for large datasets.
 
-## Features
+## Analysis Types
 
-### Basic Analysis
+The tool supports two types of analysis that can be run independently or together:
+
+### Basic Analysis (Default)
 - Average text length per field
 - Word distribution analysis
 - Junk text detection (HTML tags, special characters)
-- Tokenizer-based analysis (optional)
+- Tokenizer-based analysis (when tokenizer is specified)
 - Token length statistics with batch processing
-- Word distribution visualization
-- Chat template support for conversational data
-- Field-specific analysis
 
 ### Advanced Analysis (Optional)
 - Part-of-Speech (POS) tagging
 - Named Entity Recognition (NER)
 - Language detection using XLM-RoBERTa
 - Sentiment analysis using distilbert-sst-2-english
+
+You can control which analyses to run using these flags:
+- `--skip-basic`: Skip basic analysis (must be used with `--advanced`)
+- `--advanced`: Enable advanced analysis
+- `--use-pos`: Enable POS tagging
+- `--use-ner`: Enable NER
+- `--use-lang`: Enable language detection
+- `--use-sentiment`: Enable sentiment analysis
 
 ## Installation
 
@@ -66,6 +73,21 @@ analyze-dataset "dataset_name" \
     --fields instruction response \
     --chat-field response \
     --tokenizer "meta-llama/Llama-2-7b-chat-hf"
+```
+
+Run only advanced analysis:
+```bash
+analyze-dataset "dataset_name" --skip-basic --advanced --use-pos --use-lang
+```
+
+Run both analyses:
+```bash
+analyze-dataset "dataset_name" --advanced --use-sentiment
+```
+
+Run basic analysis only (default):
+```bash
+analyze-dataset "dataset_name"
 ```
 
 Full analysis with all features:
@@ -141,6 +163,90 @@ The tool generates markdown reports in the specified output directory:
 - `basic_stats.md`: Contains basic text statistics
 - `word_distribution.md`: Word frequency analysis
 - `advanced_stats.md`: Results from model-based analysis (if enabled)
+
+## Caching and Results Management
+
+The tool implements a two-level caching system to optimize performance and save time:
+
+### Token Cache
+- Tokenized texts are cached to avoid re-tokenization
+- Cache is stored in `~/.cache/huggingface-text-data-analyzer/`
+- Clear with `--clear-cache` flag
+
+### Analysis Results Cache
+- Complete analysis results are cached per dataset/split
+- Basic and advanced analysis results are cached separately
+- When running analysis:
+  - Tool checks for existing results
+  - Prompts user before using cached results
+  - Saves intermediate results after basic analysis
+  - Prompts before overwriting existing results
+
+### Cache Management Examples
+
+Use cached results if available:
+```bash
+analyze-dataset "dataset_name"  # Will prompt if cache exists
+```
+
+Force fresh analysis:
+```bash
+analyze-dataset "dataset_name" --clear-cache
+```
+
+Add advanced analysis to existing basic analysis:
+```bash
+analyze-dataset "dataset_name" --advanced  # Will reuse basic results if available
+```
+
+### Cache Location
+- Token cache: `~/.cache/huggingface-text-data-analyzer/`
+- Analysis results: `~/.cache/huggingface-text-data-analyzer/analysis_results/`
+
+
+## Performance and Accuracy Considerations
+
+### Batch Sizes and Memory Usage
+
+The tool uses two different batch sizes for processing:
+
+1. **Basic Batch Size** (`--basic-batch-size`, default: 1):
+   - Used for tokenization and basic text analysis
+   - Higher values improve processing speed but may affect token count accuracy
+   - Token counting in larger batches can be affected by padding, truncation, and memory constraints
+   - If exact token counts are crucial, use smaller batch sizes (8-16)
+
+2. **Advanced Batch Size** (`--advanced-batch-size`, default: 16):
+   - Used for transformer models (language detection, sentiment analysis)
+   - Adjust based on your GPU memory
+   - Larger batches improve processing speed but require more GPU memory
+   - CPU-only users might want to use smaller batches (4-8)
+
+### GPU Support
+
+The tool automatically detects and uses available CUDA GPUs for:
+- Language detection model
+- Sentiment analysis model
+- Tokenizer operations
+
+SpaCy operations (POS tagging, NER) remain CPU-bound for better compatibility.
+
+### Examples
+
+For exact token counting:
+```bash
+analyze-dataset "dataset_name" --basic-batch-size 8
+```
+
+For faster processing with GPU:
+```bash
+analyze-dataset "dataset_name" --advanced-batch-size 32 --basic-batch-size 64
+```
+
+For memory-constrained environments:
+```bash
+analyze-dataset "dataset_name" --advanced-batch-size 4 --basic-batch-size 16
+```
 
 ## Performance Features
 
