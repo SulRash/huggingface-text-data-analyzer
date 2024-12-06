@@ -6,7 +6,7 @@ from rich.console import Console
 from .src.base_analyzer import BaseAnalyzer
 from .src.advanced_analyzer import AdvancedAnalyzer
 from .src.report_generator import ReportGenerator
-from .src.utils import parse_args, setup_logging, CacheManager
+from .src.utils import parse_args, setup_logging, CacheManager, AnalysisResults
 
 from time import time
 
