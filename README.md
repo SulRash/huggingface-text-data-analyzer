@@ -164,6 +164,46 @@ The tool generates markdown reports in the specified output directory:
 - `word_distribution.md`: Word frequency analysis
 - `advanced_stats.md`: Results from model-based analysis (if enabled)
 
+## Caching and Results Management
+
+The tool implements a two-level caching system to optimize performance and save time:
+
+### Token Cache
+- Tokenized texts are cached to avoid re-tokenization
+- Cache is stored in `~/.cache/huggingface-text-data-analyzer/`
+- Clear with `--clear-cache` flag
+
+### Analysis Results Cache
+- Complete analysis results are cached per dataset/split
+- Basic and advanced analysis results are cached separately
+- When running analysis:
+  - Tool checks for existing results
+  - Prompts user before using cached results
+  - Saves intermediate results after basic analysis
+  - Prompts before overwriting existing results
+
+### Cache Management Examples
+
+Use cached results if available:
+```bash
+analyze-dataset "dataset_name"  # Will prompt if cache exists
+```
+
+Force fresh analysis:
+```bash
+analyze-dataset "dataset_name" --clear-cache
+```
+
+Add advanced analysis to existing basic analysis:
+```bash
+analyze-dataset "dataset_name" --advanced  # Will reuse basic results if available
+```
+
+### Cache Location
+- Token cache: `~/.cache/huggingface-text-data-analyzer/`
+- Analysis results: `~/.cache/huggingface-text-data-analyzer/analysis_results/`
+
+
 ## Performance and Accuracy Considerations
 
 ### Batch Sizes and Memory Usage

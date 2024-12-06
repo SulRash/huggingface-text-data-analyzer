@@ -7,13 +7,93 @@ from typing import NamedTuple, List, Optional, Any
 
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn
 from rich.console import Console
+from rich.prompt import Confirm
+
+class AnalysisResults(NamedTuple):
+    """Container for analysis results with metadata"""
+    dataset_name: str
+    subset: Optional[str]
+    split: str
+    fields: Optional[List[str]]
+    tokenizer: Optional[str]
+    timestamp: float
+    basic_stats: Optional[Any] = None
+    advanced_stats: Optional[Any] = None
 
 class CacheManager:
     def __init__(self, console: Optional[Console] = None):
         self.console = console or Console()
         self.cache_dir = Path.home() / ".cache" / "huggingface-text-data-analyzer"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.results_dir = self.cache_dir / "analysis_results"
+        self.results_dir.mkdir(exist_ok=True)
         
+    def get_results_path(self, dataset_name: str, subset: Optional[str], split: str) -> Path:
+        """Generate a unique path for analysis results."""
+        safe_name = "".join(c if c.isalnum() else "_" for c in dataset_name)
+        if subset:
+            safe_subset = "".join(c if c.isalnum() else "_" for c in subset)
+            filename = f"{safe_name}_{safe_subset}_{split}_results.pkl"
+        else:
+            filename = f"{safe_name}_{split}_results.pkl"
+        return self.results_dir / filename
+
+    def load_cached_results(
+        self, 
+        dataset_name: str, 
+        subset: Optional[str], 
+        split: str,
+        force: bool = False
+    ) -> Optional[AnalysisResults]:
+        """Load cached analysis results if they exist."""
+        results_path = self.get_results_path(dataset_name, subset, split)
+        if results_path.exists():
+            try:
+                with open(results_path, 'rb') as f:
+                    results = pickle.load(f)
+                if not force:
+                    should_use = Confirm.ask(
+                        f"Found existing analysis results for {dataset_name}. Use cached results?",
+                        default=True
+                    )
+                    if not should_use:
+                        return None
+                self.console.log(f"Loading cached analysis results for {dataset_name}")
+                return results
+            except Exception as e:
+                self.console.log(f"[yellow]Warning: Failed to load results cache: {str(e)}[/yellow]")
+                return None
+        return None
+
+    def save_results(
+        self,
+        results: AnalysisResults,
+        force: bool = False
+    ) -> bool:
+        """Save analysis results to cache."""
+        results_path = self.get_results_path(
+            results.dataset_name,
+            results.subset,
+            results.split
+        )
+        
+        if results_path.exists() and not force:
+            should_overwrite = Confirm.ask(
+                f"Analysis results already exist for {results.dataset_name}. Overwrite?",
+                default=False
+            )
+            if not should_overwrite:
+                return False
+
+        try:
+            self.console.log(f"Saving analysis results for {results.dataset_name}")
+            with open(results_path, 'wb') as f:
+                pickle.dump(results, f)
+            return True
+        except Exception as e:
+            self.console.log(f"[yellow]Warning: Failed to save results: {str(e)}[/yellow]")
+            return False
+            
     def get_cache_path(self, dataset_name: str, subset: Optional[str], split: str, field_name: str, tokenizer_name: str) -> Path:
         """Generate a unique cache path for the given parameters."""
         safe_name = "".join(c if c.isalnum() else "_" for c in dataset_name)
@@ -129,7 +209,7 @@ def parse_args() -> AnalysisArguments:
     )
     
     args = parser.parse_args()
-    
+
     if args.skip_basic and not args.advanced:
         parser.error("Cannot skip basic analysis without enabling advanced analysis (--advanced)")
     
