@@ -161,6 +161,7 @@ class AnalysisArguments(NamedTuple):
     advanced_batch_size: int
     fields: List[str] | None
     clear_cache: bool
+    no_prompt: bool
     output_format: str
 
 def create_progress() -> Progress:
@@ -207,6 +208,9 @@ def parse_args() -> AnalysisArguments:
         default="both",
         help="Output format for analysis results (default: both)"
     )
+    
+    parser.add_argument("--no-prompt", action="store_true",
+                       help="Always use cached results without prompting")
     
     args = parser.parse_args()
 
